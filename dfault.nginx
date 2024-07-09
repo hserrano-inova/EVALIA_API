@@ -1,0 +1,44 @@
+server {
+    listen 443 ssl;
+    server_name evalia.inovalabs.es;
+
+    ssl_certificate /etc/letsencrypt/live/evalia.inovalabs.es/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/evalia.inovalabs.es/privkey.pem;
+
+
+    location /api/ {
+        rewrite /api/(.*) /$1 break;
+        proxy_buffering off;
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location / {
+        root /opt/IA/EVALIA/front;
+        try_files $uri /index.html;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name subvenia.inovalabs.es;
+
+    ssl_certificate /etc/letsencrypt/live/evalia.inovalabs.es/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/evalia.inovalabs.es/privkey.pem;
+
+    location / {
+        rewrite ^/favicon.ico /static/favicon.ico permanent;
+        rewrite ^/$ /static/index.html permanent;
+        proxy_pass http://localhost:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /assets/ {
+        rewrite ^/assets/(.*)$ /static/assets/$1 last;
+    }
+
+}
