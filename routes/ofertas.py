@@ -12,6 +12,7 @@ from datetime import datetime
 from pydantic_mongo import  PydanticObjectId
 from pypdf import PdfReader
 from cleantext import clean
+from utils import encryptTxt, decryptTxt
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -20,6 +21,7 @@ def loadOferta(idof):
     db = get_db()
     oferta = db.ofertas.find_one({"id": idof})
     if oferta:
+        oferta.texto = decryptTxt(oferta.texto, settings.encrypt_key)
         return OfertaDoc(**oferta)
     else:
         raise HTTPException(status_code=404, detail="Oferta no encontrada")
@@ -68,7 +70,8 @@ def insertOF(db, file,licitaid,alias) -> str:
         id_licitacion = licitaid,
         alias=alias,
         fecha = datetime.now(),
-        texto=clean_text
+        #texto=clean_text
+        texto=encryptTxt(clean_text, settings.encrypt_key),
     )
 
     resp = db.ofertas.insert_one(of.dict())

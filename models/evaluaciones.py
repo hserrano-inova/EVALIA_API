@@ -27,3 +27,4 @@ class EvaluacionQuery(BaseModel):
     idl:str
     idof:str
     sect:int
+    model:int

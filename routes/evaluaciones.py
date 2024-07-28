@@ -9,7 +9,8 @@ from routes.ofertas import loadOferta
 from db import get_db
 from models.users import User
 from auth import get_current_user
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI #, OpenAI
+from anthropic import AsyncAnthropic #, Anthropic
 from config import settings
 from pydantic_mongo import  PydanticObjectId
 from datetime import datetime
@@ -23,17 +24,20 @@ import json
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-client = AsyncOpenAI(
-  api_key=settings.api_key
+client1 = AsyncOpenAI(
+  api_key=settings.api_key1
 )
-# client = OpenAI(
+client2 = AsyncAnthropic(
+  api_key=settings.api_key2
+)
+# client1 = OpenAI(
 #   api_key=settings.api_key,
 # )
 
 
 # @router.post("/evalua")
 # async def stream_text(): 
-#   message = await client.chat.completions.create(
+#   message = await client1.chat.completions.create(
 #       model=settings.net_model,
 #       messages=[{"role": "user", "content": "dime lo que sepas sobre Julio Cesar"}],
 #       max_tokens=100,
@@ -73,39 +77,72 @@ async def preparePromt(idl:str,idof:str,section:int):
 async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_current_user)):
   _SYS_PROMPT, _PROMPT = await preparePromt(eval.idl,eval.idof,eval.sect)
 
-  async def response_stream():
+  async def response_stream(model):
 
-        chat_coroutine = client.chat.completions.create(
-            model=settings.net_model,
-            temperature=int(settings.temperature)/10,
-            messages=[
-               {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": _SYS_PROMPT
-                    }
-                ]
-               },
-               {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": _PROMPT
-                    }
-                ]
-            }
-            ],
-            stream=True,
-        )
-        async for chunk in await chat_coroutine:
+        if(int(model)==1):
+          chat_coroutine = client1.chat.completions.create(
+              model=settings.net_model,
+              temperature=int(settings.temperature)/10,
+              messages=[
+                {
+                  "role": "system",
+                  "content": [
+                      {
+                          "type": "text",
+                          "text": _SYS_PROMPT
+                      }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "content": [
+                      {
+                          "type": "text",
+                          "text": _PROMPT
+                      }
+                  ]
+              }
+              ],
+              stream=True,
+          )
+          async for chunk in await chat_coroutine:
             #yield json.dumps(chunk.model_dump(), ensure_ascii=False) + "\n"
             if chunk.choices[0].delta.content is not None:
                 yield chunk.choices[0].delta.content
+
+        else:
+          chat_coroutine = client2.messages.stream(
+              model=settings.net_model2,
+              temperature=int(settings.temperature)/10,
+              messages=[
+                {
+                  "role": "system",
+                  "content": [
+                      {
+                          "type": "text",
+                          "text": _SYS_PROMPT
+                      }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "content": [
+                      {
+                          "type": "text",
+                          "text": _PROMPT
+                      }
+                  ]
+              }
+              ],
+          )
+          
+          #https://github.com/anthropics/anthropic-sdk-python/blob/main/examples/messages_stream.py
+          async for chunk in await chat_coroutine:
+              #yield json.dumps(chunk.model_dump(), ensure_ascii=False) + "\n"
+              if chunk.type == "text":
+                  yield chunk.text
   
-  return StreamingResponse(response_stream())
+  return StreamingResponse(response_stream(eval.model))
 
 
 

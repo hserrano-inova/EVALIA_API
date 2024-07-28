@@ -10,17 +10,17 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Endpoints de autenticación y usuario
-# @router.post("/createuser", response_model=User, tags=["User"])
-# async def create_user(user: UserInDB):
-#     db = get_db()
-#     existing_user = db.users.find_one({"username": user.username})
-#     if existing_user:
-#         raise HTTPException(status_code=400, detail="Username already registered")
-#     hashed_password = get_password_hash(user.hashed_password)
-#     user_dict = user.dict()
-#     user_dict["hashed_password"] = hashed_password
-#     db.users.insert_one(user_dict)
-#     return User(**user_dict)
+@router.post("/createuser", response_model=User, tags=["User"])
+async def create_user(user: UserInDB):
+    db = get_db()
+    existing_user = db.users.find_one({"username": user.username})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed_password = get_password_hash(user.hashed_password)
+    user_dict = user.dict()
+    user_dict["hashed_password"] = hashed_password
+    db.users.insert_one(user_dict)
+    return User(**user_dict)
 
 @router.post("/token", response_model=Token, tags=["User"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
