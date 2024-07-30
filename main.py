@@ -15,7 +15,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://evalia.inovalabs.es","*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
