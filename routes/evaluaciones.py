@@ -111,19 +111,12 @@ async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_curren
                 yield chunk.choices[0].delta.content
 
         else:
-          chat_coroutine = client2.messages.stream(
+          async with client2.messages.stream(
               model=settings.net_model2,
               temperature=int(settings.temperature)/10,
+              max_tokens=2500,
+              system=_SYS_PROMPT,
               messages=[
-                {
-                  "role": "system",
-                  "content": [
-                      {
-                          "type": "text",
-                          "text": _SYS_PROMPT
-                      }
-                  ]
-                },
                 {
                   "role": "user",
                   "content": [
@@ -134,14 +127,15 @@ async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_curren
                   ]
               }
               ],
-          )
+          ) as stream:
+              async for event in stream:
+                  if event.type == "text":
+		       yield event.text
+		#elif event.type == 'content_block_stop':
+		#    print('\n\ncontent block finished accumulating:', event.content_block)
           
           #https://github.com/anthropics/anthropic-sdk-python/blob/main/examples/messages_stream.py
-          async for chunk in await chat_coroutine:
-              #yield json.dumps(chunk.model_dump(), ensure_ascii=False) + "\n"
-              if chunk.type == "text":
-                  yield chunk.text
-  
+
   return StreamingResponse(response_stream(eval.model))
 
 
