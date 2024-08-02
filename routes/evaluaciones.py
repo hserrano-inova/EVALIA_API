@@ -20,6 +20,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
 import json
+from utils import encryptTxt, decryptTxt
+
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -129,8 +131,8 @@ async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_curren
               ],
           ) as stream:
               async for event in stream:
-                  if event.type == "text":
-		       yield event.text
+                if event.type == "text":
+                  yield event.text
 		#elif event.type == 'content_block_stop':
 		#    print('\n\ncontent block finished accumulating:', event.content_block)
           
@@ -153,6 +155,7 @@ async def read_evaluacion(idev: str, current_user: User = Depends(get_current_us
     db = get_db()
     evaluacion = db.evaluaciones.find_one({"id": idev},{"_id":0})
     if evaluacion:
+        evaluacion["evaluacion"] = decryptTxt(evaluacion["evaluacion"],settings.encrypt_key),
         return evaluacion
     raise HTTPException(status_code=404, detail="Evaluacion no encontrada")
 
@@ -183,7 +186,7 @@ async def save_evaluacion(data: EvaluacionSave, current_user: User = Depends(get
           "$push": {
             "sections": {
                 "seccion":evaluacion_dict["seccion"],
-                "evaluacion": evaluacion_dict["evaluacion"],
+                "evaluacion": encryptTxt(evaluacion_dict["evaluacion"],settings.encrypt_key),
                 "puntos": evaluacion_dict["puntos"],
                 "actualizada": datetime.now()
             }
@@ -197,7 +200,7 @@ async def save_evaluacion(data: EvaluacionSave, current_user: User = Depends(get
             "pmax": evaluacion_dict["pmax"],
             "actualizada": datetime.now(),
             "sections.$[elem].seccion":evaluacion_dict["seccion"],
-            "sections.$[elem].evaluacion": evaluacion_dict["evaluacion"],
+            "sections.$[elem].evaluacion": encryptTxt(evaluacion_dict["evaluacion"],settings.encrypt_key),
             "sections.$[elem].puntos": evaluacion_dict["puntos"],
             "sections.$[elem].actualizada": datetime.now()
           }
@@ -215,7 +218,7 @@ async def save_evaluacion(data: EvaluacionSave, current_user: User = Depends(get
           "actualizada": datetime.now(),
           "sections": [{
               "seccion":evaluacion_dict["seccion"],
-              "evaluacion": evaluacion_dict["evaluacion"],
+              "evaluacion": encryptTxt(evaluacion_dict["evaluacion"],settings.encrypt_key),
               "puntos": evaluacion_dict["puntos"],
               "actualizada": datetime.now()
           }]
@@ -267,7 +270,7 @@ async def print_evaluacion(idev: str, current_user: User = Depends(get_current_u
           c.drawString(30, y, f"Sección: {section['seccion']}")
           y -= 20
 
-          paragraph = Paragraph(section['evaluacion'], styleN)
+          paragraph = Paragraph(decryptTxt(section["evaluacion"],settings.encrypt_key), styleN)
           paragraph.wrapOn(c, width, 50)
           paragraph.drawOn(c, 30, y)
 
