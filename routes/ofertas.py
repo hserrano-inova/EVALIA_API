@@ -21,7 +21,7 @@ def loadOferta(idof):
     db = get_db()
     oferta = db.ofertas.find_one({"id": idof})
     if oferta:
-        oferta.texto = decryptTxt(oferta.texto, settings.encrypt_key)
+        oferta['texto'] = decryptTxt(oferta['texto'], settings.encrypt_key)
         return OfertaDoc(**oferta)
     else:
         raise HTTPException(status_code=404, detail="Oferta no encontrada")
