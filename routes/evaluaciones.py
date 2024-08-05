@@ -156,7 +156,8 @@ async def read_evaluacion(idev: str, current_user: User = Depends(get_current_us
     evaluacion = db.evaluaciones.find_one({"id": idev},{"_id":0})
     if evaluacion:
         for i,x in enumerate(evaluacion["sections"]):
-          evaluacion["sections"][i]["evaluacion"] = decryptTxt(evaluacion["sections"][i]["evaluacion"],settings.encrypt_key),
+          #print(decryptTxt(x["evaluacion"],settings.encrypt_key))
+          evaluacion["sections"][i]["evaluacion"] = decryptTxt(x["evaluacion"],settings.encrypt_key),
         return evaluacion
     raise HTTPException(status_code=404, detail="Evaluacion no encontrada")
 
