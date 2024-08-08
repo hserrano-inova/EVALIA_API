@@ -85,6 +85,7 @@ async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_curren
           chat_coroutine = client1.chat.completions.create(
               model=settings.net_model1,
               temperature=int(settings.temperature)/10,
+              max_tokens=3000,
               messages=[
                 {
                   "role": "system",
