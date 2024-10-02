@@ -12,7 +12,6 @@ from auth import get_current_user
 from openai import AsyncOpenAI #, OpenAI
 from anthropic import AsyncAnthropic #, Anthropic
 from config import settings
-from pydantic_mongo import  PydanticObjectId
 from datetime import datetime
 import aiofiles
 from reportlab.lib.pagesizes import A4
@@ -21,6 +20,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
 import json
 from utils import encryptTxt, decryptTxt
+#from pydantic_mongo import  PydanticObjectId
 
 
 router = APIRouter()

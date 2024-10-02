@@ -11,7 +11,7 @@ class EvaluacionSave(BaseModel):
     oferta: str = ""
     seccion: str = ""
     evaluacion: str = ""
-    puntos:int = 0
+    puntos:float = 0
     actualizada:Optional[datetime] =  None
     pmax:int = 0
 

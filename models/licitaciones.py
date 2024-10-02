@@ -29,6 +29,7 @@ class Licitacion(BaseModel):
     pmax:int = 0
     ofertas: Optional[List[OfertasField]] = []
     secciones: List[ContextField] = []
+    licitacion_fname: str = ""
     
 
 class LicitaList(BaseModel):

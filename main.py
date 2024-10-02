@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from routes import router
 from config import settings
-#from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles
 
 
 app = FastAPI(
@@ -15,12 +15,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://evalia.inovalabs.es","*"],
+    allow_origins=["https://evalia.inovalabs.es","http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
-#app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 #app.include_router(router,prefix="/api")
 app.include_router(router)
