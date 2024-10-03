@@ -9,7 +9,7 @@ from models.licitaciones import Licitacion, LicitaList
 from models.users import User
 from auth import get_current_user
 from utils import loadPagesfromPDF
-#from pydantic_mongo import  PydanticObjectId
+from pydantic_mongo import  PydanticObjectId
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -117,3 +117,7 @@ async def upload_file(
         return loadPagesfromPDF(docname,pages)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo subir el archivo: {str(e)}")
+
+
+#lo tengo en evaluaviones pk allí estan los objetos y key de openai
+#@router.post("/pliegoquery/", tags=["Licitaciones"])

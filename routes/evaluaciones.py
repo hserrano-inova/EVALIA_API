@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Response, status
+from fastapi import APIRouter, HTTPException, Depends, Response, status, Form, File
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from bson import ObjectId
@@ -289,3 +289,45 @@ async def print_evaluacion(idev: str, current_user: User = Depends(get_current_u
 
       return Response(content=pdf_content, media_type="application/pdf")
 
+
+
+@router.post("/pliegoquery/", tags=["Licitaciones"])
+async def pliego_query(
+    query: str = Form(...),
+    pliego: str = Form(...),
+    current_user: User = Depends(get_current_user)
+    ):
+
+    async def response_stream():
+        chat_coroutine = client1.chat.completions.create(
+            model=settings.net_model1,
+            temperature=int(settings.temperature)/10,
+            max_tokens=1500,
+            messages=[
+              {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Eres un consultor experto en responder preguntas sobre licitaciones de forma clara y resumida."
+                    }
+                ]
+              },
+              {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "sobre el siguiente contexto: " + pliego + " responde a la pregunta: " + query
+                    }
+                ]
+            }
+            ],
+            stream=True,
+        )
+        async for chunk in await chat_coroutine:
+          #yield json.dumps(chunk.model_dump(), ensure_ascii=False) + "\n"
+          if chunk.choices[0].delta.content is not None:
+              yield chunk.choices[0].delta.content
+
+    return StreamingResponse(response_stream())
