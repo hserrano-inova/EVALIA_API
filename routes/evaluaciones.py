@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, Response, status, Form, File
+from fastapi import APIRouter, HTTPException, Depends, Response, status, Form, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
-from bson import ObjectId
+#from bson import ObjectId
 from typing import List
 from models.evaluaciones import EvaluacionSave, EvaluacionList, EvaluacionQuery
 from routes.licitaciones import getLicitacion
@@ -14,13 +14,13 @@ from anthropic import AsyncAnthropic #, Anthropic
 from config import settings
 from datetime import datetime
 import aiofiles
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph
+# from reportlab.lib.pagesizes import A4
+# from reportlab.pdfgen import canvas
+# from reportlab.lib.styles import getSampleStyleSheet
+# from reportlab.platypus import Paragraph
 import json
 from utils import encryptTxt, decryptTxt
-#from pydantic_mongo import  PydanticObjectId
+from pydantic_mongo import  PydanticObjectId
 
 
 router = APIRouter()
@@ -239,55 +239,55 @@ async def delete_evaluacion(idev: str, current_user: User = Depends(get_current_
     else:
         return {"msg":result.deleted_count }
    
-@router.get("/printeval/{idev}", tags=["Evaluaciones"])
-async def print_evaluacion(idev: str, current_user: User = Depends(get_current_user)):
-    db = get_db()
-    evaluacion = db.evaluaciones.find_one({"id": idev},
-      {"_id":0,"id":0,"id_licitacion":0}
-    )
-    if evaluacion:
-      fname = settings.uploadOf_path
-      c = canvas.Canvas(fname, pagesize=A4)
-      width, height = A4
+# @router.get("/printeval/{idev}", tags=["Evaluaciones"])
+# async def print_evaluacion(idev: str, current_user: User = Depends(get_current_user)):
+#     db = get_db()
+#     evaluacion = db.evaluaciones.find_one({"id": idev},
+#       {"_id":0,"id":0,"id_licitacion":0}
+#     )
+#     if evaluacion:
+#       fname = settings.uploadOf_path
+#       c = canvas.Canvas(fname, pagesize=A4)
+#       width, height = A4
 
-      styles = getSampleStyleSheet()
-      styleN = styles['Normal']
+#       styles = getSampleStyleSheet()
+#       styleN = styles['Normal']
 
-      c.setTitle("Informe de Evaluacion")
+#       c.setTitle("Informe de Evaluacion")
 
-      c.setFont("Helvetica-Bold", 16)
-      c.drawString(30, height - 40, "Informe de Licitación")
+#       c.setFont("Helvetica-Bold", 16)
+#       c.drawString(30, height - 40, "Informe de Licitación")
       
       
-      c.setFont("Helvetica", 12)
-      c.drawString(30, height - 70, f"Licitación: {evaluacion['licitacion']}")
-      c.drawString(30, height - 90, f"Oferta: {evaluacion['oferta']}")
-      c.drawString(30, height - 110, f"Pmax: {evaluacion['pmax']}")
-      c.drawString(30, height - 130, f"Actualizada: {evaluacion['actualizada']}")
+#       c.setFont("Helvetica", 12)
+#       c.drawString(30, height - 70, f"Licitación: {evaluacion['licitacion']}")
+#       c.drawString(30, height - 90, f"Oferta: {evaluacion['oferta']}")
+#       c.drawString(30, height - 110, f"Pmax: {evaluacion['pmax']}")
+#       c.drawString(30, height - 130, f"Actualizada: {evaluacion['actualizada']}")
       
 
-      # Sections
-      y = height - 170
-      for section in evaluacion['sections']:
-          c.setFont("Helvetica-Bold", 14)
-          c.drawString(30, y, f"Sección: {section['seccion']}")
-          y -= 20
+#       # Sections
+#       y = height - 170
+#       for section in evaluacion['sections']:
+#           c.setFont("Helvetica-Bold", 14)
+#           c.drawString(30, y, f"Sección: {section['seccion']}")
+#           y -= 20
 
-          paragraph = Paragraph(decryptTxt(section["evaluacion"],settings.encrypt_key), styleN)
-          paragraph.wrapOn(c, width, 50)
-          paragraph.drawOn(c, 30, y)
+#           paragraph = Paragraph(decryptTxt(section["evaluacion"],settings.encrypt_key), styleN)
+#           paragraph.wrapOn(c, width, 50)
+#           paragraph.drawOn(c, 30, y)
 
-          y -= 100
-          c.drawString(50, y, f"Puntos: {section['puntos']}")
-          y -= 20
-          c.drawString(50, y, f"Actualizada: {section['actualizada']}")
-          y -= 40
+#           y -= 100
+#           c.drawString(50, y, f"Puntos: {section['puntos']}")
+#           y -= 20
+#           c.drawString(50, y, f"Actualizada: {section['actualizada']}")
+#           y -= 40
       
-      c.save()
-      async with aiofiles.open(fname, mode='rb') as file:
-          pdf_content = await file.read()
+#       c.save()
+#       async with aiofiles.open(fname, mode='rb') as file:
+#           pdf_content = await file.read()
 
-      return Response(content=pdf_content, media_type="application/pdf")
+#       return Response(content=pdf_content, media_type="application/pdf")
 
 
 
@@ -331,3 +331,64 @@ async def pliego_query(
               yield chunk.choices[0].delta.content
 
     return StreamingResponse(response_stream())
+
+
+#-------------------BACKGROUND TASKS--------------------
+def comparar_ofertas_seccion(idlicitacion:str,seccion:int):
+    db = get_db()
+    ofertas = list(db.ofertas.find({"id_licitacion": idlicitacion}))
+    licitacion = db.licitaciones.find_one(
+       {"id": idlicitacion},
+       {"secciones":{"$arrayElemAt":["$secciones",seccion]}}
+    )
+
+    #check if ofertas length >0
+    if len(ofertas) == 0:
+      raise HTTPException(status_code=404, detail="Oferta no encontrada")
+    
+    #check if licitacion exists
+    if not licitacion:
+      raise HTTPException(status_code=404, detail="Licitacion no encontrada")
+    
+
+    # f = open("./test.txt", "a")
+    # f.write(licitacion["secciones"]['tabtxt'])
+    # f.close()
+        
+    for of in ofertas:
+      completion  = client1.chat.completions.create(
+        model=settings.net_model1,
+        temperature=int(settings.temperature)/10,
+        max_tokens=3000,
+        messages=[
+          {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Eres un consultor experto en responder preguntas sobre licitaciones de forma clara y resumida."
+                }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "sobre el siguiente contexto:  responde a la pregunta: " 
+                }
+            ]
+        }
+        ],
+        stream=False,
+      )
+      completion.choices[0].message.content
+      
+
+    return "OK"
+
+
+@router.post("/comparetab/")
+async def compare_tab(idlicitacion: str, seccion:int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
+  background_tasks.add_task(comparar_ofertas_seccion, idlicitacion, seccion)
+  return {"message": "Notification sent in the background"}

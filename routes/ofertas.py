@@ -68,7 +68,7 @@ def insertOF(db, file,licitaid,alias) -> str:
     of =OfertaDoc(
         id = _id,
         id_licitacion = licitaid,
-        alias=alias,
+        oferta=alias,
         fecha = datetime.now(),
         #texto=clean_text
         texto=encryptTxt(clean_text, settings.encrypt_key),
