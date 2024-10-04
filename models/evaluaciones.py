@@ -14,7 +14,8 @@ class EvaluacionSave(BaseModel):
     puntos:float = 0
     actualizada:Optional[datetime] =  None
     pmax:int = 0
-
+    user: str = ""
+    
 class EvaluacionList(BaseModel):
     id: PydanticObjectId
     id_licitacion:str

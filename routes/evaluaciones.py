@@ -165,7 +165,7 @@ async def read_evaluacion(idev: str, current_user: User = Depends(get_current_us
 @router.get("/evaluaciones/", response_model=List[EvaluacionList], tags=["Evaluaciones"])
 async def create_evaluacion(current_user: User = Depends(get_current_user)):
     db = get_db()
-    evaluaciones = db.evaluaciones.find()
+    evaluaciones = db.evaluaciones.find({'user':current_user.username})
     return [EvaluacionList(**evaluacion) for evaluacion in evaluaciones]
 
 @router.post("/evaluaciones", tags=["Evaluaciones"])
@@ -224,7 +224,8 @@ async def save_evaluacion(data: EvaluacionSave, current_user: User = Depends(get
               "evaluacion": encryptTxt(evaluacion_dict["evaluacion"],settings.encrypt_key),
               "puntos": evaluacion_dict["puntos"],
               "actualizada": datetime.now()
-          }]
+          }],
+          "user": current_user.username
        })
        
     return 1

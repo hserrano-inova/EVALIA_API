@@ -30,6 +30,7 @@ class Licitacion(BaseModel):
     ofertas: Optional[List[OfertasField]] = []
     secciones: List[ContextField] = []
     licitacion_fname: str = ""
+    user: str = ""
     
 
 class LicitaList(BaseModel):

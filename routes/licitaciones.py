@@ -28,7 +28,7 @@ def getLicitacion(idl):
 @router.get("/licitaciones/", response_model=List[LicitaList], tags=["Licitaciones"])
 async def read_licitaciones(current_user: User = Depends(get_current_user)):
     db = get_db()
-    licitaciones = db.licitaciones.find()
+    licitaciones = db.licitaciones.find({'user':current_user.username})
     return [LicitaList(**licitacion) for licitacion in licitaciones]
 
 @router.get("/licitaciones/{id}", response_model=Licitacion , tags=["Licitaciones"])
@@ -40,6 +40,7 @@ async def create_licitacion(licitacion: Licitacion, current_user: User = Depends
     db = get_db()
     licitacion_dict = licitacion.dict()
     licitacion_dict["id"] = str(PydanticObjectId())
+    licitacion_dict["user"] = current_user.username
     result = db.licitaciones.insert_one(licitacion_dict)
 
     if result:
