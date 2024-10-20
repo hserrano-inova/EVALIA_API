@@ -13,7 +13,7 @@ class EvaluacionSave(BaseModel):
     evaluacion: str = ""
     puntos:float = 0
     actualizada:Optional[datetime] =  None
-    pmax:int = 0
+    pmax:float = 0
     user: str = ""
     
 class EvaluacionList(BaseModel):
@@ -22,7 +22,7 @@ class EvaluacionList(BaseModel):
     licitacion:str
     oferta: str
     actualizada:Optional[datetime]
-    pmax:int
+    pmax:float
 
 class EvaluacionQuery(BaseModel):
     idl:str

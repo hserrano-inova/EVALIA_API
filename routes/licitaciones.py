@@ -77,6 +77,7 @@ async def delete_licitacion(id: str, current_user: User = Depends(get_current_us
 async def upload_pliego_file(
     file: UploadFile = File(...), 
     id: str = Form(...),
+    alias: str = Form(...),
     current_user: User = Depends(get_current_user)
     ):
 
@@ -95,17 +96,38 @@ async def upload_pliego_file(
 
         db = get_db()
 
+        # db.licitaciones.update_one(
+        #     {"id": id},
+        #     {"$set": {
+        #         "licitacion_fname": file.filename,
+        #     }},upsert=True
+        # )
+
         db.licitaciones.update_one(
             {"id": id},
-            {"$set": {
-                "licitacion_fname": file.filename,
-            }},upsert=True
+            {"$push": {
+                "licitacion_fname": {'alias':alias,'filename':file.filename,'tipo':'pdf'},
+            }}, upsert=True
         )
         
-        return file.filename
+        return {"OK":"OK"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo subir el archivo: {str(e)}")
     
+@router.delete("/pliego/{idlicita}/{fname}",  tags=["Licitaciones"], status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pliego( idlicita: str, fname:str, current_user: User = Depends(get_current_user)):
+    db = get_db()
+    result = db.licitaciones.update_one(
+        {"id": idlicita},
+        {"$pull": {"licitacion_fname": {"filename": fname}}}
+    )
+    upload_dir = './static/pliegos/' 
+
+    file_location = os.path.join(upload_dir, fname)
+    if os.path.exists(file_location):
+        os.remove(file_location)
+
+    return result.modified_count
 
 @router.post("/loadpages/", tags=["Licitaciones"])
 async def upload_file(

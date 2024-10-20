@@ -15,7 +15,7 @@ class OfertasField(BaseModel):
 
 class ContextField(BaseModel):
     tabtxt: str = ""
-    puntuacion: int = 0
+    puntuacion: float = 0
     pliego: str = ""
     criterio: str = ""
 
@@ -26,10 +26,10 @@ class Licitacion(BaseModel):
     estado: str = ""
     observaciones: str = ""
     enlace: str = ""
-    pmax:int = 0
+    pmax:float = 0
     ofertas: Optional[List[OfertasField]] = []
     secciones: List[ContextField] = []
-    licitacion_fname: str = ""
+    licitacion_fname: List[dict]= []
     user: str = ""
     
 
