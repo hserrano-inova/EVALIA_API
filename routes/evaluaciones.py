@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 #from bson import ObjectId
 from typing import List
-from models.evaluaciones import EvaluacionSave, EvaluacionList, EvaluacionQuery
+from models.evaluaciones import EvaluacionSave, EvaluacionList, EvaluacionQuery, EvaluacionComparaQuery
 from routes.licitaciones import getLicitacion
 from routes.ofertas import loadOferta
 from db import get_db
@@ -334,62 +334,157 @@ async def pliego_query(
     return StreamingResponse(response_stream())
 
 
-#-------------------BACKGROUND TASKS--------------------
-def comparar_ofertas_seccion(idlicitacion:str,seccion:int):
-    db = get_db()
-    ofertas = list(db.ofertas.find({"id_licitacion": idlicitacion}))
-    licitacion = db.licitaciones.find_one(
-       {"id": idlicitacion},
-       {"secciones":{"$arrayElemAt":["$secciones",seccion]}}
-    )
+#-------------------COMPARACIONES-------------------
 
-    #check if ofertas length >0
-    if len(ofertas) == 0:
-      raise HTTPException(status_code=404, detail="Oferta no encontrada")
-    
-    #check if licitacion exists
-    if not licitacion:
-      raise HTTPException(status_code=404, detail="Licitacion no encontrada")
-    
+async def preparePromtCompara(idl:str,ofA:str,ofB:str,section:int):
+  ofertaA =  loadOferta(ofA)
+  ofertaB =  loadOferta(ofB)
+  licitacion =  getLicitacion(idl)
 
-    # f = open("./test.txt", "a")
-    # f.write(licitacion["secciones"]['tabtxt'])
-    # f.close()
-        
-    for of in ofertas:
-      completion  = client1.chat.completions.create(
-        model=settings.net_model1,
+  if(ofertaA and ofertaB and licitacion):
+    PLIEGO = licitacion.secciones[section].pliego
+    CRITERIOS = licitacion.secciones[section].criterio
+    NOFERTA_A = ofertaA.oferta
+    NOFERTA_B = ofertaB.oferta
+    PROPUESTA_A = ofertaA.texto
+    PROPUESTA_B = ofertaB.texto
+
+    _PROMPT = f"""
+        Eres un consultor experto en tecnología con la tarea de evaluar y puntuar licitaciones. Debes leer las condiciones del pliego y utilizar los criterios de evaluación proporcionados para comparar dos ofertas de dos empresas.
+
+        # Steps
+
+        1. **Revisión de Condiciones del Pliego**: Lee y comprende cuidadosamente las condiciones del pliego y los criterios de evaluación.
+        2. **Evaluación de Ofertas**: Examina cada oferta, analizando el "Nombre de la oferta" y el "texto" proporcionado por cada empresa.
+        3. **Comparación**: Compara las ofertas basándote en los criterios proporcionados. Evalúa factores como costo, cumplimiento técnico, innovación, experiencia previa, y cualquier otro criterio especificado en el pliego.
+        4. **Justificación**: Describe detalladamente las razones detrás de tu decisión, comparando directamente las fortalezas y debilidades de cada oferta en relación con los criterios.
+        5. **Determinación del Ganador**: Indica claramente cuál de las dos ofertas es la ganadora y por qué.
+
+        # Output Format
+
+        La evaluación debe presentarse en un texto detallado que incluya:
+        - Un análisis de cada oferta basado en los criterios del pliego.
+        - Una comparación directa entre las dos ofertas.
+        - Una clara declaración del nombre de la oferta ganadora.
+        - Justificación de la elección con ejemplos y referencias a los criterios de evaluación.
+
+        **Input:**
+        - Pliego: "{PLIEGO}"
+        - Criterios de evaluación: "{CRITERIOS}"
+        - Oferta A: 
+          - Nombre: "{NOFERTA_A}"
+          - Texto: [{PROPUESTA_A}]
+        - Oferta B:
+          - Nombre: "{NOFERTA_B}"
+          - Texto: [{PROPUESTA_B}]
+
+        # Output example
+
+        **Output:**
+        - Análisis de "Solución Innovadora A": [Detalles del análisis basado en criterios]
+        - Análisis de "Solución Completa B": [Detalles del análisis basado en criterios]
+        - Comparación: [Comparación detallada resaltando fortalezas y debilidades]
+        - Oferta Ganadora: "Solución Innovadora A" (Debido a [razones específicas])
+
+        # Notes
+
+        - Asegúrate de que el análisis sea imparcial y basado estrictamente en los criterios proporcionados.
+        - La comparación debe ser detallada y lógica, evitando conjeturas no fundamentadas.
+        - Considera cualquier especificidad o requerimiento adicional destacado en el pliego."""
+    return _PROMPT
+  else:
+    raise HTTPException(status_code=404, detail="Oferta o licitación no encontrada")
+  
+@router.post("/compara" , tags=["Evaluaciones"])
+async def stream_compara_ia(eval:EvaluacionComparaQuery,current_user: User = Depends(get_current_user)):
+  _PROMPT = await preparePromtCompara(eval.idl,eval.ofA,eval.ofB,eval.sect)
+
+  async def response_stream(model):
+
+    async with client2.messages.stream(
+        model=settings.net_model2,
         temperature=int(settings.temperature)/10,
-        max_tokens=3000,
+        max_tokens=4000,
         messages=[
-          {
-            "role": "system",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Eres un consultor experto en responder preguntas sobre licitaciones de forma clara y resumida."
-                }
-            ]
-          },
           {
             "role": "user",
             "content": [
                 {
                     "type": "text",
-                    "text": "sobre el siguiente contexto:  responde a la pregunta: " 
+                    "text": _PROMPT
                 }
             ]
         }
         ],
-        stream=False,
-      )
-      completion.choices[0].message.content
+    ) as stream:
+        async for event in stream:
+          if event.type == "text":
+            yield event.text
+		#elif event.type == 'content_block_stop':
+		#    print('\n\ncontent block finished accumulating:', event.content_block)
+          
+          #https://github.com/anthropics/anthropic-sdk-python/blob/main/examples/messages_stream.py
+
+  return StreamingResponse(response_stream(eval.model))
+
+
+#-----------------------BACKGROUND TASK-----------------------------
+
+# def comparar_ofertas_seccion(idlicitacion:str,seccion:int):
+#     db = get_db()
+#     ofertas = list(db.ofertas.find({"id_licitacion": idlicitacion}))
+#     licitacion = db.licitaciones.find_one(
+#        {"id": idlicitacion},
+#        {"secciones":{"$arrayElemAt":["$secciones",seccion]}}
+#     )
+
+#     #check if ofertas length >0
+#     if len(ofertas) == 0:
+#       raise HTTPException(status_code=404, detail="Oferta no encontrada")
+    
+#     #check if licitacion exists
+#     if not licitacion:
+#       raise HTTPException(status_code=404, detail="Licitacion no encontrada")
+    
+
+#     # f = open("./test.txt", "a")
+#     # f.write(licitacion["secciones"]['tabtxt'])
+#     # f.close()
+        
+#     for of in ofertas:
+#       completion  = client1.chat.completions.create(
+#         model=settings.net_model1,
+#         temperature=int(settings.temperature)/10,
+#         max_tokens=3000,
+#         messages=[
+#           {
+#             "role": "system",
+#             "content": [
+#                 {
+#                     "type": "text",
+#                     "text": "Eres un consultor experto en responder preguntas sobre licitaciones de forma clara y resumida."
+#                 }
+#             ]
+#           },
+#           {
+#             "role": "user",
+#             "content": [
+#                 {
+#                     "type": "text",
+#                     "text": "sobre el siguiente contexto:  responde a la pregunta: " 
+#                 }
+#             ]
+#         }
+#         ],
+#         stream=False,
+#       )
+#       completion.choices[0].message.content
       
 
-    return "OK"
+#     return "OK"
 
 
-@router.post("/comparetab/")
-async def compare_tab(idlicitacion: str, seccion:int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
-  background_tasks.add_task(comparar_ofertas_seccion, idlicitacion, seccion)
-  return {"message": "Notification sent in the background"}
+# @router.post("/comparetab/")
+# async def compare_tab(idlicitacion: str, seccion:int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
+#   background_tasks.add_task(comparar_ofertas_seccion, idlicitacion, seccion)
+#   return {"message": "Notification sent in the background"}
