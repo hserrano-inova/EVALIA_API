@@ -30,6 +30,14 @@ async def read_comparacion(idcomp: str, current_user: User = Depends(get_current
         return comparacion
     raise HTTPException(status_code=404, detail="Comparacion no encontrada")
 
+@router.get("/comparaciones/licita/{idl}", response_model=List[ComparacionList], tags=["Comparaiones"])
+async def read_comparacion_licita(idl: str, current_user: User = Depends(get_current_user)):
+    db = get_db()
+    comparaciones = db.comparaciones.find({"id_licitacion": idl},{"_id":0})
+    if comparaciones:
+        return [ComparacionList(**comparacion) for comparacion in comparaciones]
+    raise HTTPException(status_code=404, detail="Comparaciones no encontrada")
+
 @router.post("/comparaciones", tags=["Comparaciones"])
 async def save_Comparacion(data: ComparacionSave, current_user: User = Depends(get_current_user)):
     db = get_db()
@@ -37,8 +45,8 @@ async def save_Comparacion(data: ComparacionSave, current_user: User = Depends(g
     evdoc = db.comparaciones.find_one(
        {
           "id_licitacion": Comparacion_dict["id_licitacion"],
-          "licitacion": Comparacion_dict["licitacion"],
-          "comparacion": Comparacion_dict["comparacion"],
+          "ofA": Comparacion_dict["ofA"],
+          "ofB": Comparacion_dict["ofB"],
       })
     if evdoc: 
       #$PUSH SI NO EXISTE LA SECCION
@@ -60,7 +68,6 @@ async def save_Comparacion(data: ComparacionSave, current_user: User = Depends(g
       x = db.comparaciones.update_one(
         {"id": evdoc["id"],"sections.seccion":  Comparacion_dict["seccion"] },
         {"$set": {
-            "pmax": Comparacion_dict["pmax"],
             "actualizada": datetime.now(),
             "sections.$[elem].seccion":Comparacion_dict["seccion"],
             "sections.$[elem].comparacion": Comparacion_dict["comparacion"],
