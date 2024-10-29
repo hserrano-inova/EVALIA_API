@@ -11,6 +11,9 @@ app = FastAPI(
   timeout_keep_alive=100,
   #docs_url='/api/docs' if not settings.production else None,
   #redoc_url='/redoc'if not settings.production else None
+  docs_url=None,
+  redoc_url=None,
+  redirect_slashes=False
 )
 
 app.add_middleware(

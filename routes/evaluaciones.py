@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Response, status, Form, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends,Request, Response, status, Form, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 #from bson import ObjectId
@@ -47,7 +47,7 @@ client2 = AsyncAnthropic(
 #   )
 #   return message.choices[0].message.content
 
-async def preparePromt(idl:str,idof:str,section:int):
+async def preparePromt(idl:str,idof:str,section:int,lang:str):
   oferta =  loadOferta(idof)
   licitacion =  getLicitacion(idl)
 
@@ -57,14 +57,26 @@ async def preparePromt(idl:str,idof:str,section:int):
     PROPUESTA = oferta.texto
     PUNTUACION_MINIMA = "0"
     PUNTUACION_MAXIMA = str(licitacion.secciones[section].puntuacion)
-    _SYS_PROMPT="Eres un consultor experto en tecnología con la tarea de evaluar y puntuar licitaciones. Debes leer las condiciones del pliego, utilizar los criterios de evaluación proporcionados, y evaluar una propuesta asignándole una puntuación numérica justificada."
-    _PROMPT = f"""
-        Primero, lee atentamente las condiciones del pliego:\n<pliego>\n{PLIEGO}\n</pliego>\n\n
-        Ahora, considera los siguientes criterios de evaluación:\n<criterios>\n{CRITERIOS}\n</criterios>\n\n
-        A continuación, evalúa la siguiente propuesta:\n<propuesta>\n{PROPUESTA}\n</propuesta>\n\n
-        Analiza cuidadosamente la propuesta en relación con las condiciones del pliego y los criterios de evaluación proporcionados. Considera cómo la propuesta cumple o no con cada uno de los criterios y las condiciones establecidas.\n\n
-        Basándote en tu análisis, asigna una puntuación numérica a la propuesta. La puntuación debe estar entre {PUNTUACION_MINIMA} y {PUNTUACION_MAXIMA} puntos.\n\n
-        Por último, utilizando exclusivamente tus propios conocimientos y criterio expresa el grado de detalle en el que la propuesta responde al pliego.\n\nPresenta tu evaluación en el siguiente formato:\n\n<evaluacion>\n<razonamiento>\n[Proporciona aquí tu razonamiento detallado, explicando cómo la propuesta cumple o no con los criterios y condiciones, y justificando la puntuación que vas a asignar]\n</razonamiento>\n<detalle>[Indica aquí el grado de detalle]</detalle>\n<puntuacion>[Inserta aquí la puntuación numérica asignada]</puntuacion>\n</evaluacion>\n\nAsegúrate de que tu evaluación sea objetiva, basada en los criterios proporcionados y las condiciones del pliego, y que tu puntuación esté debidamente justificada por tu razonamiento."""
+
+    if(lang == "pt"):
+       _SYS_PROMPT="É um consultor especializado em tecnologia encarregado de avaliar e pontuar propostas. Deve ler as condições do documento, utilizar os critérios de avaliação fornecidos e avaliar uma proposta atribuindo-lhe uma pontuação numérica justificada."
+       _PROMPT = f"""
+          Em primeiro lugar, leia atentamente as condições da especificação:\n<sheet>\n{PLIEGO}\n</sheet>\n\n
+          Considere agora os seguintes critérios de avaliação:\n<criteria>\n{CRITERIOS}\n</criteria>\n\n
+          De seguida, avalie a seguinte proposta:\n<proposal>\n{PROPUESTA}\n</proposal>\n\n
+          Analise cuidadosamente a proposta em relação às condições do documento e aos critérios de avaliação fornecidos. Considere a forma como a proposta cumpre ou não cada um dos critérios e condições estabelecidos. \n\n
+          Com base na sua análise, atribua uma pontuação numérica à proposta. A pontuação deve estar entre {PUNTUACION_MINIMA} e {PUNTUACION_MAXIMA} pontos. \n\n
+          Por fim, utilizando exclusivamente conhecimentos e critérios próprios, expresse o grau de detalhe com que a proposta responde às especificações. \n\nApresente a sua avaliação no seguinte formato:\n\n<avaliação>\n<raciocínio>\n[ Forneça aqui o seu raciocínio detalhado, explicando como a proposta cumpre ou não os critérios e condições e justificando a pontuação que irá atribuir]\n</reasoning>\n<detail>[Indique aqui o nível de detalhe]< /detail >\n< score>[Insira aqui a pontuação numérica atribuída]</score>\n</eavaliação>\n\nCertifique-se de que a sua avaliação é objetiva, baseada nos critérios fornecidos e nas condições do documento, e que a sua pontuação está devidamente justificada pelo seu raciocínio.
+       """
+    else:
+      _SYS_PROMPT="Eres un consultor experto en tecnología con la tarea de evaluar y puntuar licitaciones. Debes leer las condiciones del pliego, utilizar los criterios de evaluación proporcionados, y evaluar una propuesta asignándole una puntuación numérica justificada."
+      _PROMPT = f"""
+          Primero, lee atentamente las condiciones del pliego:\n<pliego>\n{PLIEGO}\n</pliego>\n\n
+          Ahora, considera los siguientes criterios de evaluación:\n<criterios>\n{CRITERIOS}\n</criterios>\n\n
+          A continuación, evalúa la siguiente propuesta:\n<propuesta>\n{PROPUESTA}\n</propuesta>\n\n
+          Analiza cuidadosamente la propuesta en relación con las condiciones del pliego y los criterios de evaluación proporcionados. Considera cómo la propuesta cumple o no con cada uno de los criterios y las condiciones establecidas.\n\n
+          Basándote en tu análisis, asigna una puntuación numérica a la propuesta. La puntuación debe estar entre {PUNTUACION_MINIMA} y {PUNTUACION_MAXIMA} puntos.\n\n
+          Por último, utilizando exclusivamente tus propios conocimientos y criterio expresa el grado de detalle en el que la propuesta responde al pliego.\n\nPresenta tu evaluación en el siguiente formato:\n\n<evaluacion>\n<razonamiento>\n[Proporciona aquí tu razonamiento detallado, explicando cómo la propuesta cumple o no con los criterios y condiciones, y justificando la puntuación que vas a asignar]\n</razonamiento>\n<detalle>[Indica aquí el grado de detalle]</detalle>\n<puntuacion>[Inserta aquí la puntuación numérica asignada]</puntuacion>\n</evaluacion>\n\nAsegúrate de que tu evaluación sea objetiva, basada en los criterios proporcionados y las condiciones del pliego, y que tu puntuación esté debidamente justificada por tu razonamiento."""
     return _SYS_PROMPT, _PROMPT
   else:
     raise HTTPException(status_code=404, detail="Oferta o licitación no encontrada")
@@ -76,8 +88,8 @@ async def preparePromt(idl:str,idof:str,section:int):
 #   return StreamingResponse(f"{datetime.now()} HOLA MUNDO<puntuacion>15</puntuacion>")
 
 @router.post("/evalua" , tags=["Evaluaciones"])
-async def stream_ia(eval:EvaluacionQuery,current_user: User = Depends(get_current_user)):
-  _SYS_PROMPT, _PROMPT = await preparePromt(eval.idl,eval.idof,eval.sect)
+async def stream_ia(eval:EvaluacionQuery, request:Request, current_user: User = Depends(get_current_user)):
+  _SYS_PROMPT, _PROMPT = await preparePromt(eval.idl,eval.idof,eval.sect,request.headers.get('accept-language'))
 
   async def response_stream(model):
 
@@ -336,7 +348,7 @@ async def pliego_query(
 
 #-------------------COMPARACIONES-------------------
 
-async def preparePromtCompara(idl:str,ofA:str,ofB:str,section:int):
+async def preparePromtCompara(idl:str,ofA:str,ofB:str,section:int,lang:str):
   ofertaA =  loadOferta(ofA)
   ofertaB =  loadOferta(ofB)
   licitacion =  getLicitacion(idl)
@@ -349,55 +361,100 @@ async def preparePromtCompara(idl:str,ofA:str,ofB:str,section:int):
     PROPUESTA_A = ofertaA.texto
     PROPUESTA_B = ofertaB.texto
 
-    _PROMPT = f"""
-        Eres un consultor experto en tecnología con la tarea de evaluar y puntuar licitaciones. Debes leer las condiciones del pliego y utilizar los criterios de evaluación proporcionados para comparar dos ofertas de dos empresas.
+    if(lang == "pt"):
+       _PROMPT = f"""
+          É um consultor especializado em tecnologia encarregado de avaliar e pontuar propostas. Deve ler as condições do documento e utilizar os critérios de avaliação fornecidos para comparar duas ofertas de duas empresas.
 
-        # Steps
+          # Passos
 
-        1. **Revisión de Condiciones del Pliego**: Lee y comprende cuidadosamente las condiciones del pliego y los criterios de evaluación.
-        2. **Evaluación de Ofertas**: Examina cada oferta, analizando el "Nombre de la oferta" y el "texto" proporcionado por cada empresa.
-        3. **Comparación**: Compara las ofertas basándote en los criterios proporcionados. Evalúa factores como costo, cumplimiento técnico, innovación, experiencia previa, y cualquier otro criterio especificado en el pliego.
-        4. **Justificación**: Describe detalladamente las razones detrás de tu decisión, comparando directamente las fortalezas y debilidades de cada oferta en relación con los criterios.
-        5. **Determinación del Ganador**: Indica claramente cuál de las dos ofertas es la ganadora y por qué.
+          1. **Revisão das Condições do Documento**: Leia e compreenda atentamente as condições do documento e os critérios de avaliação.
+          2. **Avaliação da Oferta**: Examine cada oferta, analisando o “Nome da Oferta” e o “texto” fornecido por cada empresa.
+          3. **Comparação**: compare as ofertas com base nos critérios fornecidos. Avalie fatores como o custo, a conformidade técnica, a inovação, a experiência anterior e quaisquer outros critérios especificados nas especificações.
+          4. **Justificação**: Descreva detalhadamente os motivos da sua decisão, comparando diretamente os pontos fortes e fracos de cada oferta em relação aos critérios.
+          5. **Determinação do Vencedor**: Indique claramente qual das duas ofertas é a vencedora e porquê.
 
-        # Output Format
+          # Formato de saída
 
-        La evaluación debe presentarse en un texto detallado que incluya:
-        - Un análisis de cada oferta basado en los criterios del pliego.
-        - Una comparación directa entre las dos ofertas.
-        - Una clara declaración del nombre de la oferta ganadora.
-        - Justificación de la elección con ejemplos y referencias a los criterios de evaluación.
+          A avaliação deverá ser apresentada num texto detalhado que inclua:
+          - Uma análise de cada oferta com base nos critérios do caderno de encargos.
+          - Uma comparação direta entre as duas ofertas.
+          - Uma declaração clara do nome da proposta vencedora.
+          - Justificação da escolha com exemplos e referências aos critérios de avaliação.
 
-        **Input:**
-        - Pliego: "{PLIEGO}"
-        - Criterios de evaluación: "{CRITERIOS}"
-        - Oferta A: 
-          - Nombre: "{NOFERTA_A}"
+          **Entrada:**
+          - Folha: "{PLIEGO}"
+          - Critérios de avaliação: "{CRITERIOS}"
+          - Oferta A:
+          - Nome: "{NOFERTA_A}"
           - Texto: [{PROPUESTA_A}]
-        - Oferta B:
-          - Nombre: "{NOFERTA_B}"
+          - Oferta B:
+          - Nome: "{NOFERTA_B}"
           - Texto: [{PROPUESTA_B}]
 
-        # Output example
+          # Exemplos de saída
 
-        **Output:**
-        - Análisis de "Solución Innovadora A": [Detalles del análisis basado en criterios]
-        - Análisis de "Solución Completa B": [Detalles del análisis basado en criterios]
-        - Comparación: [Comparación detallada resaltando fortalezas y debilidades]
-        - Oferta Ganadora: "Solución Innovadora A" (Debido a [razones específicas])
+          **Saída:**
+          - Análise da "Solução Inovadora A": [Detalhes da análise baseada em critérios]
+          - Análise da "Solução Completa B": [Detalhes da análise baseada em critérios]
+          - Comparação: [Comparação detalhada destacando os pontos fortes e fracos]
+          - Proposta vencedora: "Solução Inovadora A" (devido a [motivos específicos])
 
-        # Notes
+          #Notas
 
-        - Asegúrate de que el análisis sea imparcial y basado estrictamente en los criterios proporcionados.
-        - La comparación debe ser detallada y lógica, evitando conjeturas no fundamentadas.
-        - Considera cualquier especificidad o requerimiento adicional destacado en el pliego."""
+          - Certifique-se de que a análise é imparcial e baseada estritamente nos critérios fornecidos.
+          - A comparação deve ser detalhada e lógica, evitando conjeturas infundadas.
+          - Considere qualquer especificidade ou requisitos adicionais destacados nas especificações.
+       """
+    else:
+      _PROMPT = f"""
+          Eres un consultor experto en tecnología con la tarea de evaluar y puntuar licitaciones. Debes leer las condiciones del pliego y utilizar los criterios de evaluación proporcionados para comparar dos ofertas de dos empresas.
+
+          # Steps
+
+          1. **Revisión de Condiciones del Pliego**: Lee y comprende cuidadosamente las condiciones del pliego y los criterios de evaluación.
+          2. **Evaluación de Ofertas**: Examina cada oferta, analizando el "Nombre de la oferta" y el "texto" proporcionado por cada empresa.
+          3. **Comparación**: Compara las ofertas basándote en los criterios proporcionados. Evalúa factores como costo, cumplimiento técnico, innovación, experiencia previa, y cualquier otro criterio especificado en el pliego.
+          4. **Justificación**: Describe detalladamente las razones detrás de tu decisión, comparando directamente las fortalezas y debilidades de cada oferta en relación con los criterios.
+          5. **Determinación del Ganador**: Indica claramente cuál de las dos ofertas es la ganadora y por qué.
+
+          # Output Format
+
+          La evaluación debe presentarse en un texto detallado que incluya:
+          - Un análisis de cada oferta basado en los criterios del pliego.
+          - Una comparación directa entre las dos ofertas.
+          - Una clara declaración del nombre de la oferta ganadora.
+          - Justificación de la elección con ejemplos y referencias a los criterios de evaluación.
+
+          **Input:**
+          - Pliego: "{PLIEGO}"
+          - Criterios de evaluación: "{CRITERIOS}"
+          - Oferta A: 
+            - Nombre: "{NOFERTA_A}"
+            - Texto: [{PROPUESTA_A}]
+          - Oferta B:
+            - Nombre: "{NOFERTA_B}"
+            - Texto: [{PROPUESTA_B}]
+
+          # Output example
+
+          **Output:**
+          - Análisis de "Solución Innovadora A": [Detalles del análisis basado en criterios]
+          - Análisis de "Solución Completa B": [Detalles del análisis basado en criterios]
+          - Comparación: [Comparación detallada resaltando fortalezas y debilidades]
+          - Oferta Ganadora: "Solución Innovadora A" (Debido a [razones específicas])
+
+          # Notes
+
+          - Asegúrate de que el análisis sea imparcial y basado estrictamente en los criterios proporcionados.
+          - La comparación debe ser detallada y lógica, evitando conjeturas no fundamentadas.
+          - Considera cualquier especificidad o requerimiento adicional destacado en el pliego."""
     return _PROMPT
   else:
     raise HTTPException(status_code=404, detail="Oferta o licitación no encontrada")
   
 @router.post("/compara" , tags=["Evaluaciones"])
-async def stream_compara_ia(eval:EvaluacionComparaQuery,current_user: User = Depends(get_current_user)):
-  _PROMPT = await preparePromtCompara(eval.idl,eval.ofA,eval.ofB,eval.sect)
+async def stream_compara_ia(eval:EvaluacionComparaQuery,request:Request, current_user: User = Depends(get_current_user)):
+  _PROMPT = await preparePromtCompara(eval.idl,eval.ofA,eval.ofB,eval.sect,request.headers.get('accept-language'))
 
   async def response_stream(model):
 
