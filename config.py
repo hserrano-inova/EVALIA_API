@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     api_key2: str
     net_model1:str
     net_model2:str
+    comp_model:int
     temperature:int
     algorithm: str
     access_token_expire_minutes: int
